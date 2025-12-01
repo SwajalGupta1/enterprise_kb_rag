@@ -1,103 +1,72 @@
+# ingestion/indexer.py
+
 import os
-import faiss
 import numpy as np
-import onnxruntime as ort
-from transformers import AutoTokenizer
+import requests
+import faiss
 
-# Get absolute path of project root
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_DIR = os.path.join(BASE_DIR, "..", "onnx_bge")
-
-MODEL_PATH = os.path.join(MODEL_DIR, "model.onnx")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+EMBED_MODEL = "llama-3.2-embedding-1b"
 
 class VectorIndexer:
     def __init__(self):
-        # Load tokenizer from local folder
-        self.tokenizer = AutoTokenizer.from_pretrained(
-            MODEL_DIR,
-            local_files_only=True
-        )
-
-        # Load ONNX model with correct absolute path
-        self.session = ort.InferenceSession(
-            MODEL_PATH,
-            providers=["CPUExecutionProvider"]
-        )
-
-        # embedding dimension 384 for BGE small
-        self.index = faiss.IndexFlatL2(384)
+        self.index = None
         self.store = []
 
     def embed(self, texts):
-        # Tokenize text
-        encoded = self.tokenizer(
-            texts,
-            padding=True,
-            truncation=True,
-            return_tensors="np"
-        )
+        """Generate embeddings from Groq API"""
+        url = "https://api.groq.com/openai/v1/embeddings"
 
-        # If token_type_ids are missing (they usually are), add zeros
-        if "token_type_ids" not in encoded:
-            encoded["token_type_ids"] = np.zeros_like(encoded["input_ids"])
-
-        ort_inputs = {
-            "input_ids": encoded["input_ids"],
-            "attention_mask": encoded["attention_mask"],
-            "token_type_ids": encoded["token_type_ids"]
+        payload = {
+            "model": EMBED_MODEL,
+            "input": texts
         }
 
-        # ONNX forward pass
-        outputs = self.session.run(None, ort_inputs)
+        headers = {
+            "Authorization": f"Bearer {GROQ_API_KEY}",
+            "Content-Type": "application/json"
+        }
 
-        # Your model ONLY returns last_hidden_state
-        last_hidden = outputs[0]     # shape: (batch, seq_len, 384)
+        try:
+            resp = requests.post(url, json=payload, headers=headers)
+            resp.raise_for_status()
+            data = resp.json()
 
-        # ⭐ Apply mean pooling across seq_len → final shape (batch, 384)
-        embeddings = last_hidden.mean(axis=1).astype("float32")
+            vectors = [item["embedding"] for item in data["data"]]
+            return np.array(vectors).astype("float32")
 
-        return embeddings
+        except Exception as e:
+            print("Embedding Error:", e)
+            return np.zeros((len(texts), 384)).astype("float32")
 
-
-
-
-    def add_documents(self, docs):
-        print("DEBUG: Received docs:", len(docs))
-        texts = [d["chunk"] for d in docs]
-        print("DEBUG: First chunk:", texts[0] if texts else "None")
-
+    def add_documents(self, chunks):
+        """Add chunk embeddings into FAISS index"""
+        texts = [c["chunk"] for c in chunks]
         embeddings = self.embed(texts)
-        print("DEBUG: Embeddings shape:", embeddings.shape)
 
-        self.index.add(embeddings.astype("float32"))
-        print("DEBUG: FAISS size after add:", self.index.ntotal)
+        if self.index is None:
+            dim = embeddings.shape[1]
+            self.index = faiss.IndexFlatL2(dim)
 
-        self.store.extend(docs)
-        print("DEBUG: Store size:", len(self.store))
+        self.index.add(embeddings)
 
+        # store original metadata
+        for i, c in enumerate(chunks):
+            self.store.append({
+                "chunk": c["chunk"],
+                "source": c["source"],
+                "metadata": c["metadata"]
+            })
 
     def search(self, query, top_k=5):
-        print("DEBUG: FAISS ntotal:", self.index.ntotal)
-
-        if self.index.ntotal == 0:
-            print("DEBUG: Index is EMPTY")
-            return []
-
+        """Search top k results"""
         query_emb = self.embed([query])
-        print("DEBUG: Query emb shape:", query_emb.shape)
 
-        distances, indices = self.index.search(query_emb.astype("float32"), top_k)
-        print("DEBUG: Returned indices:", indices)
+        D, I = self.index.search(query_emb, top_k)
 
         results = []
-        for idx in indices[0]:
-            if 0 <= idx < len(self.store):
+        for idx in I[0]:
+            if idx < len(self.store):
                 results.append(self.store[idx])
-        print("DEBUG: Results count:", len(results))
-        return results
 
-if __name__ == "__main__":
-    idx = VectorIndexer()
-    test = idx.embed(["I am Swajal Gupta"])
-    print("Embedding shape:", test.shape)
-    print("Embedding sample:", test[0][:10])
+        return results
