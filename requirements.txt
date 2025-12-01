@@ -1,0 +1,10 @@
+transformers
+huggingface-hub
+faiss-cpu
+numpy
+pandas
+streamlit
+requests
+beautifulsoup4
+pdfplumber
+groq
