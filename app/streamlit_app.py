@@ -1,3 +1,11 @@
+import sys
+from pathlib import Path
+
+# Add project ROOT to Python path
+ROOT_DIR = Path(__file__).resolve().parent.parent
+sys.path.append(str(ROOT_DIR))
+
+
 # app/streamlit_app.py
 import streamlit as st
 from ingestion.loaders import *
