@@ -7,3 +7,5 @@ PyPDF2
 beautifulsoup4
 tiktoken
 python-dotenv
+pdfplumber
+
