@@ -1,6 +1,6 @@
 
 
-# 🤖 OmniRAG – Multi-Source Retrieval-Augmented AI Assistant (Groq + FAISS + Streamlit)
+# 🤖 Multi-Source Retrieval-Augmented AI Assistant (Groq + FAISS + Streamlit)
 
 OmniRAG is an advanced **Retrieval-Augmented Generation (RAG)** system that ingests PDFs, CSVs, text files, web URLs, or raw text and instantly builds a searchable knowledge base. It generates embeddings using **Groq’s LLaMA 3.2 Embedding model**, performs semantic search with **FAISS**, and produces accurate grounded answers using **Groq LLaMA models** — all inside a clean, intuitive Streamlit interface.
 
@@ -41,23 +41,23 @@ OmniRAG is an advanced **Retrieval-Augmented Generation (RAG)** system that inge
 
 
 
-enterprise_kb_rag/
-│
-├── app/
-│ └── streamlit_app.py
-│
-├── ingestion/
-│ ├── loaders.py
-│ ├── processors.py
-│ ├── chunker.py
-│ └── indexer.py
-│
-├── querying/
-│ ├── retriever.py
-│ └── generator.py
-│
-├── requirements.txt
-└── README.md
+- enterprise_kb_rag/
+- │
+- ├── app/
+- │ └── streamlit_app.py
+- │
+- ├── ingestion/
+- │ ├── loaders.py
+- │ ├── processors.py
+- │ ├── chunker.py
+- │ └── indexer.py
+- │
+- ├── querying/
+- │ ├── retriever.py
+- │ └── generator.py
+- │
+- ├── requirements.txt
+- └── README.md
 ---
 
 ## ⚙️ How OmniRAG Works
@@ -73,5 +73,8 @@ enterprise_kb_rag/
 9. **Groq LLaMA model** produces the final answer  
 
 ---
+
+## Streamlit URL
+https://enterprisekbrag-kyqyus86xqqtlh3jdknssz.streamlit.app/
 
 
